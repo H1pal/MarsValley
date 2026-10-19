@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="공동 온실에서 살아남고, 불확실한 미래를 향해 화성을 떠나는 생존 게임">
+  <meta name="theme-color" content="#111c22">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/src/style.css">
+  <title>Mars Valley · 마지막 온실</title>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Mars Valley 처음 화면"><span class="planet" aria-hidden="true"></span><span>MARS VALLEY<small>화성 생존 기록 · 마지막 온실</small></span></a>
+    <div class="header-right"><span class="version">PLAYABLE ALPHA / 01</span><button id="help" class="quiet">조작 안내</button><button id="pause" class="quiet">일시정지 <kbd>Esc</kbd></button></div>
+  </header>
+  <main>
+    <div class="session-line"><span><span class="live-dot"></span> <strong id="place">공동 온실</strong><span class="divider">/</span>화성 남부 거주구</span><span>생존 시간 <strong id="clock">00:00</strong></span></div>
+    <div id="save-error" class="error-banner" role="alert" hidden></div>
+    <div class="layout">
+      <section class="game-panel" aria-label="게임 화면">
+        <div class="vitals">
+          <div class="vital health"><label for="health">체력 <strong id="health-value">100</strong></label><meter id="health" min="0" max="100" value="100">100</meter></div>
+          <div class="vital hunger"><label for="hunger">허기 <strong id="hunger-value">75</strong></label><meter id="hunger" min="0" max="100" value="75">75</meter></div>
+          <div class="vital oxygen"><label for="oxygen">산소 <strong id="oxygen-value">100</strong></label><meter id="oxygen" min="0" max="100" value="100">100</meter></div>
+          <div class="weather"><span id="weather-icon" aria-hidden="true">☀</span><span><strong id="weather-title">맑음</strong><small id="weather-detail">폭풍 예보 확인 중</small></span></div>
+        </div>
+        <div class="viewport">
+          <canvas id="world" width="1024" height="640" tabindex="0" aria-label="키보드로 탐험하는 화성 지도. WASD 이동, E 상호작용, Q 식사. 상태와 주변 대상은 아래에 표시됩니다."></canvas>
+          <div id="world-state" class="world-state" hidden>일시정지</div>
+          <div class="map-label"><span>SECTOR 07</span><strong>마지막 온실</strong></div>
+        </div>
+        <div class="interaction-line"><span id="interaction">주변을 살펴보세요. WASD로 이동합니다.</span><button id="interact" class="small">상호작용 <kbd>E</kbd></button></div>
+        <div class="cargo">
+          <div><span class="resource-icon crop-icon" aria-hidden="true">♧</span><span>공동 식량<strong id="food">6</strong></span></div>
+          <div><span class="resource-icon" aria-hidden="true">⚙</span><span>회수 부품<strong id="parts">0</strong></span></div>
+          <div><span class="resource-icon" aria-hidden="true">▣</span><span>항해 보존식<strong id="provisions">0</strong></span></div>
+          <button id="eat" class="quiet">식사하기 <kbd>Q</kbd></button>
+        </div>
+      </section>
+      <aside class="sidebar">
+        <section class="mission">
+          <p class="eyebrow">OUR WAY OUT</p><h1>화성을 떠나는 일</h1>
+          <p class="muted">돌아갈 지구는 없다.<br>그래도, 다음을 향해.</p>
+          <ol id="objectives" class="objectives"></ol>
+          <div class="departure"><span>현재 탑승 예정</span><strong id="crew">란 · 1명</strong><small id="needed">출발에 보존식 2개 필요</small></div>
+        </section>
+        <section class="community"><div class="section-heading"><h2>함께 살아가는 사람들</h2><span>03</span></div><div id="residents"></div></section>
+        <section class="radio"><div class="section-heading"><h2>104.2 MHz</h2><span class="radio-bars" aria-hidden="true">▂▅▃▇▂</span></div><p id="radio-message" role="status">온실은 안전합니다. 나가기 전 식량과 산소를 확인하세요.</p></section>
+      </aside>
+    </div>
+    <section class="journal" aria-label="최근 생존 기록"><span class="eyebrow">FIELD LOG</span><p id="latest-log" aria-live="polite">새로운 생존 기록을 시작하세요.</p><span id="save-status">로컬 저장</span></section>
+    <footer><span><kbd>W A S D</kbd> 이동 <kbd>E</kbd> 상호작용 <kbd>Q</kbd> 식사 <kbd>Esc</kbd> 정지</span><span>한 번의 삶. 당신의 선택.<span class="desktop-note"> · 키보드가 필요합니다</span></span></footer>
+  </main>
+  <dialog id="dialog" aria-labelledby="dialog-title"><div class="dialog-top"><span id="dialog-tag" class="eyebrow">MARS VALLEY</span><span class="tiny-planet" aria-hidden="true">◉</span></div><h2 id="dialog-title"></h2><div id="dialog-body"></div><p id="dialog-feedback" role="status"></p><div id="dialog-actions"></div></dialog>
+  <noscript>이 게임을 실행하려면 JavaScript를 활성화해 주세요.</noscript>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
