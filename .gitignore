@@ -4,3 +4,6 @@ dist/
 .env*
 coverage/
 artifacts/
+
+# Template Images
+assets/images/template/
