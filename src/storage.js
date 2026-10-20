@@ -1,5 +1,5 @@
 import { VERSION } from './game.js';
-import { WIDTH, HEIGHT, OBJECTS, PLOTS } from './world.js';
+import { WIDTH, HEIGHT, OBJECTS, PLOTS, SPAWN, GREENHOUSE_OFFSET } from './world.js';
 
 export const SAVE_KEY = 'mars-valley.run.v1';
 export const TERMINAL_KEY = 'mars-valley.terminal.v1';
@@ -7,10 +7,13 @@ const finite = (n, low, high) => typeof n === 'number' && Number.isFinite(n) && 
 const count = n => Number.isInteger(n) && n >= 0 && n <= 1e7;
 const listOfNames = xs => Array.isArray(xs) && xs.length <= 3 && xs.every(n => ['선', '홍 선생님', 'DJ'].includes(n));
 
-export function validateSave(s) {
-  if (!s || s.version !== VERSION || typeof s.runId !== 'string' || !/^[\da-f-]{36}$/i.test(s.runId)) return false;
+export function validateSave(s) { return validState(s, VERSION); }
+
+function validState(s, version) {
+  const width = version === 1 ? 32 : WIDTH, height = version === 1 ? 20 : HEIGHT;
+  if (!s || s.version !== version || typeof s.runId !== 'string' || !/^[\da-f-]{36}$/i.test(s.runId)) return false;
   if (!['active', 'dead', 'escaped'].includes(s.status) || !finite(s.elapsed, 0, 1e8)) return false;
-  if (!s.position || !finite(s.position.x, 1, WIDTH - 1) || !finite(s.position.y, 1, HEIGHT - 1)) return false;
+  if (!s.position || !finite(s.position.x, 1, width - 1) || !finite(s.position.y, 1, height - 1)) return false;
   if (!['health', 'hunger', 'oxygen'].every(k => finite(s[k], 0, 100))) return false;
   if (!['food', 'parts', 'provisions', 'harvested'].every(k => count(s[k]))) return false;
   if (!finite(s.workerClock, 0, 24)) return false;
@@ -43,7 +46,15 @@ function decode(raw) {
   if (!raw || raw.length > 50000) throw new Error('저장 데이터의 크기가 올바르지 않습니다.');
   let state;
   try { state = JSON.parse(raw); } catch { throw new Error('저장 데이터를 읽을 수 없습니다.'); }
-  if (!validateSave(state)) throw new Error('저장 버전이나 데이터가 올바르지 않습니다. 새 회차를 선택하면 초기화됩니다.');
+  if (!validState(state, state?.version === 1 ? 1 : VERSION)) throw new Error('저장 버전이나 데이터가 올바르지 않습니다. 새 회차를 선택하면 초기화됩니다.');
+  if (state.version === 1) {
+    const p = state.position;
+    // The old greenhouse is translated intact. Exterior geometry has changed;
+    // resume there safely without resetting resources, deadlines, or terminal state.
+    state.position = p.x >= 2 && p.x < 12 && p.y >= 3 && p.y < 17
+      ? { x: p.x + GREENHOUSE_OFFSET.x, y: p.y + GREENHOUSE_OFFSET.y } : { ...SPAWN };
+    state.version = VERSION;
+  }
   return state;
 }
 

@@ -108,7 +108,8 @@ function help() {
   showDialog('help', '살아남기 위한 기록', 'FIELD GUIDE');
   paragraph('WASD 또는 방향키로 이동합니다. 가까운 대상에 E 표시가 나타나면 조사·대화·작업할 수 있습니다. Q는 공동 식량 1개로 식사합니다.');
   paragraph('경작대: E로 파종 → 다시 E로 급수 → 90초 후 E로 수확. 주민들도 24초마다 농사에 참여합니다. 수확물은 공동 창고에 들어갑니다.');
-  paragraph('온실 오른쪽 출입구로 나가면 산소가 줄어듭니다. 온실과 지도 중앙 오른쪽의 O₂ 대피소에서는 산소가 충전됩니다. 틈이 난 지형은 우회하세요.');
+  paragraph('온실 오른쪽 출입구로 나가면 산소가 줄어듭니다. 온실과 지도 중앙의 O₂ 대피소에서는 산소가 충전됩니다. 틈이 난 지형은 우회하세요.');
+  paragraph('지도는 란을 따라 움직이며 가장자리에서 멈춥니다. 지면의 점선과 갈림길 표지를 따라 탐험하세요. 북쪽 잔해 지대의 동쪽 끝에는 통신기가 있습니다.');
   paragraph('잔해 수색에는 8초가 걸립니다. 이동하면 취소됩니다. 폐쇄 설비 구역의 점선 안에서는 체력이 줄어드니 입구 밸브부터 차단하세요.');
   paragraph('북동쪽 발사대에서 부품 8개로 탈출선을 복구합니다. 게시판에서 합의 후 보존식을 만드세요. 출발에는 본인을 포함해 인당 보존식 2개가 필요합니다.');
   paragraph('초대는 주민과 직접 대화합니다. 선은 구조, 홍 선생님은 급수와 공동 식사, DJ는 외부 신호가 중요합니다. 강제로 동행시킬 수는 없습니다.');
@@ -269,7 +270,7 @@ function updateHUD() {
       row.append(element('span', '', 'avatar'), copy, element('span', !r.alive ? '사망' : r.invited ? '동행' : r.stance, 'stance')); $('residents').append(row);
     }
   }
-  let radio = '온실 오른쪽 문으로 나가면 잔해 지대입니다. 북동쪽에는 탈출선과 통신기가 있습니다.';
+  let radio = '온실 동쪽 길에서 북쪽으로 가면 잔해 지대, 동쪽으로 계속 가면 O₂ 대피소입니다. 탈출소는 북동쪽, 설비 구역은 남동쪽입니다.';
   if (state.oxygen < 30) radio = `산소 부족 ${Math.ceil(state.oxygen)}%. 온실이나 O₂ 대피소로 즉시 귀환하세요.`;
   else if (state.rescue === 'active') radio = `긴급: 선의 산소 장치 고장. 남동쪽 설비 구역. 대응 여유 ${formatTime(Math.max(0, state.rescueDeadline - state.elapsed))}. 수리 또는 대피 지원이 필요합니다.`;
   else if (state.hunger < 25) radio = '허기가 낮습니다. Q로 식사하세요. 식량이 없으면 온실로 돌아가 수확하세요.';
@@ -385,7 +386,7 @@ function frame(now) {
   }
   hudClock += dt;
   if (hudClock >= 0.1) { hudClock = 0; updateHUD(); }
-  render(ctx, state, moving, reducedMotion);
+  render(ctx, state, moving, reducedMotion, pixelRatio);
   requestAnimationFrame(frame);
 }
 updateHUD(); requestAnimationFrame(frame);

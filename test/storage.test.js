@@ -58,3 +58,42 @@ test('explicit reset recovers from a corrupt terminal marker', () => {
   assert.equal(loadGame(storage).status, 'active');
   assert.equal(storage.getItem(TERMINAL_KEY), null);
 });
+
+test('legacy saves migrate to the expanded map without losing progress or overwriting on read', () => {
+  const storage = memory(), legacy = newGame();
+  legacy.version = 1; legacy.position = { x: 27.5, y: 14.5 };
+  legacy.parts = 7; legacy.oxygen = 31; legacy.elapsed = 150;
+  legacy.rescue = 'active'; legacy.rescueDeadline = 360;
+  legacy.searched = ['scrap-0']; legacy.residents[2].invited = true;
+  const raw = JSON.stringify(legacy); storage.setItem(SAVE_KEY, raw);
+  const migrated = loadGame(storage);
+  assert.equal(migrated.version, 2);
+  assert.deepEqual(migrated.position, newGame().position);
+  assert.deepEqual({ ...migrated, version: 1, position: legacy.position }, legacy);
+  assert.equal(storage.getItem(SAVE_KEY), raw);
+  saveGame(storage, migrated);
+  assert.deepEqual(loadGame(storage), migrated);
+});
+
+test('legacy greenhouse position moves with the greenhouse and invalid old coordinates are rejected', () => {
+  const storage = memory(), legacy = newGame(); legacy.version = 1;
+  legacy.position = { x: 7.5, y: 14.5 };
+  storage.setItem(SAVE_KEY, JSON.stringify(legacy));
+  assert.deepEqual(loadGame(storage).position, { x: 11.5, y: 24.5 });
+  legacy.position = { x: 50, y: 30 };
+  storage.setItem(SAVE_KEY, JSON.stringify(legacy));
+  assert.throws(() => loadGame(storage));
+});
+
+test('legacy terminal markers still prevent resurrection after map migration', () => {
+  const storage = memory(), legacy = newGame();
+  legacy.version = 1; legacy.position = { x: 7.5, y: 14.5 };
+  storage.setItem(SAVE_KEY, JSON.stringify(legacy));
+  legacy.status = 'dead'; legacy.health = 0; legacy.cause = '굶주림';
+  storage.setItem(TERMINAL_KEY, JSON.stringify(legacy));
+  const migrated = loadGame(storage);
+  assert.equal(migrated.version, 2); assert.equal(migrated.status, 'dead');
+  assert.equal(migrated.runId, legacy.runId);
+  saveGame(storage, migrated);
+  assert.equal(loadGame(storage).status, 'dead');
+});
