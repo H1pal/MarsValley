@@ -6,7 +6,8 @@ import { loadGame, saveGame, resetGame } from './storage.js';
 const $ = id => document.getElementById(id);
 const canvas = $('world'), ctx = canvas.getContext('2d');
 const dialog = $('dialog'), keys = new Set();
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const panels = ['mission-panel', 'player-panel', 'info-panel'].map($);
 let state = newGame(), paused = true, ownsLock = false, storageBlocked = false;
 let canPersist = false;
 let dialogKind = '', lastTime = performance.now(), saveClock = 0, hudClock = 0;
@@ -23,6 +24,7 @@ function button(label, callback, primary = false, parent = $('dialog-actions')) 
 }
 function showDialog(kind, title, tag = 'MARS VALLEY') {
   keys.clear(); paused = true; state.job = null; dialogKind = kind;
+  panels.forEach(panel => $('panel-home').append(panel));
   $('dialog-title').textContent = title; $('dialog-tag').textContent = tag;
   $('dialog-body').replaceChildren(); $('dialog-actions').replaceChildren(); $('dialog-feedback').textContent = '';
   if (!dialog.open) dialog.showModal();
@@ -30,7 +32,17 @@ function showDialog(kind, title, tag = 'MARS VALLEY') {
 function focusDialog() { dialog.querySelector('button')?.focus(); }
 function closeDialog() {
   if (!ownsLock || storageBlocked || state.status !== 'active') return;
+  panels.forEach(panel => $('panel-home').append(panel));
   dialog.close(); dialogKind = ''; keys.clear(); paused = false; canvas.focus(); lastTime = performance.now();
+}
+
+function showPanel(id, title, tag) {
+  if (!ownsLock || !canPersist || state.status !== 'active') return;
+  showDialog('panel', title, tag);
+  $('dialog-body').append($(id));
+  updateHUD();
+  button('닫고 계속하기', closeDialog, true);
+  focusDialog();
 }
 
 function save(reset = false) {
@@ -79,10 +91,15 @@ function confirmRestart() {
 function showPause() {
   if (!ownsLock) return;
   if (state.status !== 'active') { showEnding(); return; }
-  showDialog('pause', '잠시 숨을 고르는 시간', '일시정지');
+  showDialog('pause', '설정 · 일시정지', '잠시 숨을 고르는 시간');
   paragraph('회차 시간이 멈췄습니다. 식량과 산소는 줄어들지 않습니다.');
   paragraph(`생존 ${formatTime(state.elapsed)} · 공동 식량 ${state.food} · 부품 ${state.parts} · 보존식 ${state.provisions}`);
-  button('계속하기', closeDialog, true); button('새 회차', confirmRestart);
+  const motion = element('label', '', 'motion-control');
+  const toggle = document.createElement('input'); toggle.type = 'checkbox'; toggle.checked = reducedMotion;
+  toggle.addEventListener('change', () => { reducedMotion = toggle.checked; });
+  motion.append(toggle, document.createTextNode('화면 효과 줄이기'));
+  $('dialog-body').append(motion);
+  button('계속하기', closeDialog, true); button('조작 안내', help); button('새 회차', confirmRestart);
   focusDialog();
 }
 
@@ -218,8 +235,13 @@ function updateHUD() {
   $('clock').textContent = formatTime(state.elapsed); $('place').textContent = locationName(state);
   for (const name of ['health', 'hunger', 'oxygen']) {
     $(name).value = state[name]; $(`${name}-value`).textContent = Math.ceil(state[name]);
+    $(`detail-${name}`).textContent = Math.ceil(state[name]);
   }
-  for (const name of ['food', 'parts', 'provisions']) $(name).textContent = state[name];
+  for (const name of ['food', 'parts', 'provisions']) {
+    $(name).textContent = state[name]; $(`detail-${name}`).textContent = state[name];
+  }
+  $('detail-harvested').textContent = state.harvested;
+  $('detail-searched').textContent = state.searched.length;
   const w = weather(state);
   $('weather-title').textContent = w.storm ? '모래폭풍' : w.warning ? '폭풍 접근' : '맑음';
   $('weather-icon').textContent = w.storm || w.warning ? '≋' : '☀';
@@ -255,12 +277,17 @@ function updateHUD() {
   else if (w.warning) radio = '30초 이내 모래폭풍이 도착합니다. 탐험을 마치거나 대피소로 이동하세요.';
   else if (isSafe(state.position)) radio = '안전 구역 · 산소 충전 중. 공동 온실의 주민들은 작물을 함께 돌봅니다.';
   if ($('radio-message').textContent !== radio) $('radio-message').textContent = radio;
+  const danger = state.oxygen < 30 || state.rescue === 'active' || state.hunger < 25 || w.storm || w.warning;
+  $('danger-alert').hidden = !danger;
+  if (danger && $('danger-alert').textContent !== radio) $('danger-alert').textContent = radio;
   const event = state.events[0];
   if (event && lastEvent !== `${event.time}:${event.text}`) {
     lastEvent = `${event.time}:${event.text}`; $('latest-log').textContent = `${formatTime(event.time)} — ${event.text}`;
+    $('event-history').replaceChildren(...state.events.map(e => element('li', `${formatTime(e.time)} — ${e.text}`)));
   }
   $('world-state').hidden = !paused || dialog.open;
   $('pause').disabled = !ownsLock || state.status !== 'active';
+  for (const id of ['mission-button', 'player-button', 'info-button']) $(id).disabled = !ownsLock || !canPersist || state.status !== 'active';
   $('interact').disabled = paused || !target || state.status !== 'active';
   $('eat').disabled = paused || state.food < 1 || state.hunger > 85 || state.status !== 'active';
 }
@@ -282,6 +309,9 @@ function eat() {
 
 $('interact').addEventListener('click', doInteract); $('eat').addEventListener('click', eat);
 $('pause').addEventListener('click', showPause); $('help').addEventListener('click', help);
+$('mission-button').addEventListener('click', () => showPanel('mission-panel', '화성을 떠나는 일', '미션 / 탈출 준비'));
+$('player-button').addEventListener('click', () => showPanel('player-panel', '내 정보', 'RAN / 생존 기록'));
+$('info-button').addEventListener('click', () => showPanel('info-panel', '게임 정보', '공동체 / 무전 / 기록'));
 dialog.addEventListener('cancel', event => {
   event.preventDefault();
   if (!['intro', 'ending', 'restart', 'error', 'locked'].includes(dialogKind)) closeDialog();
@@ -339,6 +369,10 @@ if (navigator.locks) {
 window.addEventListener('pageshow', event => { if (event.persisted) window.location.reload(); });
 
 function frame(now) {
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  const width = Math.max(1, Math.round(canvas.clientWidth * pixelRatio));
+  const height = Math.max(1, Math.round(canvas.clientHeight * pixelRatio));
+  if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
   const dt = Math.min(0.05, Math.max(0, (now - lastTime) / 1000)); lastTime = now;
   let moving = false;
   if (!paused && ownsLock && !storageBlocked && !document.hidden && state.status === 'active') {

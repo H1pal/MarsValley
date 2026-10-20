@@ -127,8 +127,26 @@ function object(ctx, state, o) {
   }
 }
 
+export function fitWorld(width, height) {
+  const scale = Math.min(width / (WIDTH * TILE), height / (HEIGHT * TILE));
+  return { scale, x: (width - WIDTH * TILE * scale) / 2, y: (height - HEIGHT * TILE * scale) / 2 };
+}
+
 export function render(ctx, state, moving = false, reducedMotion = false) {
-  ctx.clearRect(0, 0, WIDTH * TILE, HEIGHT * TILE);
+  const { width, height } = ctx.canvas;
+  ctx.resetTransform();
+  rect(ctx, 0, 0, width, height, colors.sand);
+  // Fill aspect-ratio margins with terrain, never a page background or letterbox.
+  const view = fitWorld(width, height);
+  const grain = Math.max(16, Math.round(TILE * view.scale));
+  for (let y = 0; y < height; y += grain) for (let x = 0; x < width; x += grain) {
+    rect(ctx, x + 6, y + 7, Math.max(2, view.scale * 3), Math.max(1, view.scale), '#a06b48');
+    rect(ctx, x + grain / 2, y + grain * .7, Math.max(3, view.scale * 5), Math.max(1, view.scale), '#734c37');
+  }
+  ctx.save();
+  ctx.translate(view.x, view.y);
+  ctx.scale(view.scale, view.scale);
+  ctx.imageSmoothingEnabled = false;
   for (let y = 0; y < HEIGHT; y++) for (let x = 0; x < WIDTH; x++) tile(ctx, x, y);
   greenhouse(ctx);
   // Exterior utility cables, path markers, and solar arrays.
@@ -181,4 +199,5 @@ export function render(ctx, state, moving = false, reducedMotion = false) {
     }
   }
   if (inLeak(state.position) && !state.leakFixed) { ctx.strokeStyle = '#d97c5b'; ctx.lineWidth = 5; ctx.strokeRect(3, 3, 1018, 634); }
+  ctx.restore();
 }
