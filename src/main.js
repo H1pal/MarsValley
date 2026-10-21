@@ -1,13 +1,16 @@
 import { newGame, tick, move, act, interact, weather, locationName, launchRequirements, canInvite } from './game.js';
 import { nearest, isSafe } from './world.js';
 import { render } from './render.js';
+import { canUseMap, createMapView } from './map.js';
 import { loadGame, saveGame, resetGame } from './storage.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('world'), ctx = canvas.getContext('2d');
 const dialog = $('dialog'), keys = new Set();
 let reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const panels = ['mission-panel', 'player-panel', 'info-panel'].map($);
+const panels = ['map-panel', 'mission-panel', 'player-panel', 'info-panel'].map($);
+const updateMiniMap = createMapView($('mini-map'));
+const updateOverviewMap = createMapView($('overview-map'), true);
 let state = newGame(), paused = true, ownsLock = false, storageBlocked = false;
 let canPersist = false;
 let dialogKind = '', lastTime = performance.now(), saveClock = 0, hudClock = 0;
@@ -24,6 +27,7 @@ function button(label, callback, primary = false, parent = $('dialog-actions')) 
 }
 function showDialog(kind, title, tag = 'MARS VALLEY') {
   keys.clear(); paused = true; state.job = null; dialogKind = kind;
+  dialog.classList.toggle('map-dialog', kind === 'map');
   panels.forEach(panel => $('panel-home').append(panel));
   $('dialog-title').textContent = title; $('dialog-tag').textContent = tag;
   $('dialog-body').replaceChildren(); $('dialog-actions').replaceChildren(); $('dialog-feedback').textContent = '';
@@ -37,12 +41,14 @@ function closeDialog() {
 }
 
 function showPanel(id, title, tag) {
-  if (!ownsLock || !canPersist || state.status !== 'active') return;
-  showDialog('panel', title, tag);
+  if (!ownsLock || !canPersist || state.status !== 'active' || storageBlocked) return;
+  if (id === 'map-panel' && !canUseMap(state)) return;
+  showDialog(id === 'map-panel' ? 'map' : 'panel', title, tag);
   $('dialog-body').append($(id));
   updateHUD();
   button('닫고 계속하기', closeDialog, true);
-  focusDialog();
+  if (id === 'map-panel') { $('dialog-title').tabIndex = -1; $('dialog-title').focus(); }
+  else focusDialog();
 }
 
 function save(reset = false) {
@@ -62,7 +68,7 @@ function save(reset = false) {
 
 function intro(hasSave = false) {
   showDialog('intro', hasSave ? '아직, 다음이 남아 있다' : '귀환할 지구는 없다', 'MARS VALLEY / 마지막 온실');
-  paragraph(hasSave ? `생존 시간 ${formatTime(state.elapsed)}. ${locationName(state)}에서 중단한 기록이 남아 있습니다.` : '란은 기후 재난을 이겨낸 지구를 기대했다. 하지만 그곳에는 아무것도 남아 있지 않았다.', 'lead');
+  paragraph(hasSave ? `생존 시간 ${formatTime(state.elapsed)}. 중단한 기록이 남아 있습니다.` : '란은 기후 재난을 이겨낸 지구를 기대했다. 하지만 그곳에는 아무것도 남아 있지 않았다.', 'lead');
   paragraph('화성으로 돌아온 란은 공동 온실의 주민들에게 탈출 계획을 공개한다. 목적지는 불확실하다. 누구와 떠날지는 당신이 결정한다.');
   const voices = element('div', '', 'voices');
   for (const [name, line] of [['선 · 동참', '설비는 오래 못 버텨. 탈출선을 고쳐보자.'], ['홍 선생님 · 반대', '우선 여기 있는 사람들이 먹고살아야 해요.'], ['DJ · 유보', '바깥의 신호를 확인할 수 있다면 생각해 볼게.']]) {
@@ -109,6 +115,7 @@ function help() {
   paragraph('WASD 또는 방향키로 이동합니다. 가까운 대상에 E 표시가 나타나면 조사·대화·작업할 수 있습니다. Q는 공동 식량 1개로 식사합니다.');
   paragraph('경작대: E로 파종 → 다시 E로 급수 → 90초 후 E로 수확. 주민들도 24초마다 농사에 참여합니다. 수확물은 공동 창고에 들어갑니다.');
   paragraph('온실 오른쪽 출입구로 나가면 산소가 줄어듭니다. 온실과 지도 중앙의 O₂ 대피소에서는 산소가 충전됩니다. 틈이 난 지형은 우회하세요.');
+  paragraph('오른쪽 위 원형 지도를 누르면 전체 지도와 현재 위치, 날씨를 확인합니다. 모래폭풍 중에는 지도 연결이 끊기고 폭풍이 끝나면 복구됩니다.');
   paragraph('지도는 란을 따라 움직이며 가장자리에서 멈춥니다. 지면의 점선과 갈림길 표지를 따라 탐험하세요. 북쪽 잔해 지대의 동쪽 끝에는 통신기가 있습니다.');
   paragraph('잔해 수색에는 8초가 걸립니다. 이동하면 취소됩니다. 폐쇄 설비 구역의 점선 안에서는 체력이 줄어드니 입구 밸브부터 차단하세요.');
   paragraph('북동쪽 발사대에서 부품 8개로 탈출선을 복구합니다. 게시판에서 합의 후 보존식을 만드세요. 출발에는 본인을 포함해 인당 보존식 2개가 필요합니다.');
@@ -244,6 +251,10 @@ function updateHUD() {
   $('detail-harvested').textContent = state.harvested;
   $('detail-searched').textContent = state.searched.length;
   const w = weather(state);
+  updateMiniMap(state); updateOverviewMap(state);
+  $('map-button').disabled = !ownsLock || !canPersist || storageBlocked || !canUseMap(state);
+  $('map-unavailable').hidden = !w.storm;
+  $('map-button').setAttribute('aria-label', w.storm ? '지도 연결 불가' : '전체 지도 열기');
   $('weather-title').textContent = w.storm ? '모래폭풍' : w.warning ? '폭풍 접근' : '맑음';
   $('weather-icon').textContent = w.storm || w.warning ? '≋' : '☀';
   $('weather-detail').textContent = `${w.storm ? '종료까지' : '폭풍까지'} ${formatTime(w.remaining)}`;
@@ -274,11 +285,9 @@ function updateHUD() {
   if (state.oxygen < 30) radio = `산소 부족 ${Math.ceil(state.oxygen)}%. 온실이나 O₂ 대피소로 즉시 귀환하세요.`;
   else if (state.rescue === 'active') radio = `긴급: 선의 산소 장치 고장. 남동쪽 설비 구역. 대응 여유 ${formatTime(Math.max(0, state.rescueDeadline - state.elapsed))}. 수리 또는 대피 지원이 필요합니다.`;
   else if (state.hunger < 25) radio = '허기가 낮습니다. Q로 식사하세요. 식량이 없으면 온실로 돌아가 수확하세요.';
-  else if (w.storm) radio = '모래폭풍 발생. 실외 산소 소모가 2배입니다. 온실과 O₂ 대피소에서 기다릴 수 있습니다.';
-  else if (w.warning) radio = '30초 이내 모래폭풍이 도착합니다. 탐험을 마치거나 대피소로 이동하세요.';
   else if (isSafe(state.position)) radio = '안전 구역 · 산소 충전 중. 공동 온실의 주민들은 작물을 함께 돌봅니다.';
   if ($('radio-message').textContent !== radio) $('radio-message').textContent = radio;
-  const danger = state.oxygen < 30 || state.rescue === 'active' || state.hunger < 25 || w.storm || w.warning;
+  const danger = state.oxygen < 30 || state.rescue === 'active' || state.hunger < 25;
   $('danger-alert').hidden = !danger;
   if (danger && $('danger-alert').textContent !== radio) $('danger-alert').textContent = radio;
   const event = state.events[0];
@@ -310,6 +319,7 @@ function eat() {
 
 $('interact').addEventListener('click', doInteract); $('eat').addEventListener('click', eat);
 $('pause').addEventListener('click', showPause); $('help').addEventListener('click', help);
+$('map-button').addEventListener('click', () => showPanel('map-panel', '화성 탐사 지도', 'SECTOR 07 / 지형과 구조물'));
 $('mission-button').addEventListener('click', () => showPanel('mission-panel', '화성을 떠나는 일', '미션 / 탈출 준비'));
 $('player-button').addEventListener('click', () => showPanel('player-panel', '내 정보', 'RAN / 생존 기록'));
 $('info-button').addEventListener('click', () => showPanel('info-panel', '게임 정보', '공동체 / 무전 / 기록'));
