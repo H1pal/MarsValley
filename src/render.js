@@ -1,4 +1,4 @@
-import { WIDTH, HEIGHT, TILE, terrain, OBJECTS, nearest, residentPosition, isSafe, inLeak } from './world.js';
+import { WIDTH, HEIGHT, TILE, terrain, OBJECTS, nearest, residentPosition, isSafe, inLeak, GREENHOUSE_OFFSET, REGIONS, LEAK, TRAILS } from './world.js';
 import { weather, RULES } from './game.js';
 
 const colors = { sand: '#89583e', greenhouse: '#4b5950', facility: '#525653', pad: '#575858', shelter: '#435b58', wall: '#5c4536', crack: '#49362e' };
@@ -127,30 +127,60 @@ function object(ctx, state, o) {
   }
 }
 
-export function render(ctx, state, moving = false, reducedMotion = false) {
-  ctx.clearRect(0, 0, WIDTH * TILE, HEIGHT * TILE);
-  for (let y = 0; y < HEIGHT; y++) for (let x = 0; x < WIDTH; x++) tile(ctx, x, y);
-  greenhouse(ctx);
-  // Exterior utility cables, path markers, and solar arrays.
-  rect(ctx, 401, 332, 280, 3, '#b69767'); rect(ctx, 678, 235, 3, 100, '#b69767');
-  for (let x = 425; x < 830; x += 64) {
-    rect(ctx, x, 322, 3, 17, '#4b4840'); rect(ctx, x - 2, 319, 7, 5, '#d9c08a');
+// Camera coordinates are world pixels; backing-store density must not change the view.
+export function cameraView(width, height, position, pixelRatio = 1) {
+  const scale = Math.max(1.5 * pixelRatio, width / (30 * TILE), height / (20 * TILE));
+  const viewWidth = width / scale, viewHeight = height / scale;
+  const clamp = (value, max) => Math.max(0, Math.min(max, value));
+  return { x: clamp(position.x * TILE - viewWidth / 2, WIDTH * TILE - viewWidth),
+    y: clamp(position.y * TILE - viewHeight / 2, HEIGHT * TILE - viewHeight),
+    width: viewWidth, height: viewHeight, scale };
+}
+
+function exterior(ctx) {
+  ctx.strokeStyle = '#ba9867'; ctx.lineWidth = 2; ctx.setLineDash([8, 12]);
+  for (const trail of TRAILS) {
+    ctx.beginPath(); ctx.moveTo(trail[0].x * TILE, trail[0].y * TILE);
+    for (const p of trail.slice(1)) ctx.lineTo(p.x * TILE, p.y * TILE);
+    ctx.stroke();
   }
-  for (let i = 0; i < 4; i++) {
-    const x = 440 + i * 37;
-    rect(ctx, x + 4, 534, 22, 7, '#463c31'); rect(ctx, x, 512, 30, 21, '#40545c');
-    rect(ctx, x, 512, 30, 2, '#8c9fa0');
-    for (let j = 1; j < 3; j++) rect(ctx, x + j * 10, 514, 1, 17, '#7d9493');
-    rect(ctx, x + 1, 522, 28, 1, '#7d9493');
+  ctx.setLineDash([]);
+  const shelter = REGIONS.shelter;
+  ctx.strokeStyle = '#9db5a4'; ctx.lineWidth = 4;
+  ctx.strokeRect(shelter.x * TILE + 3, shelter.y * TILE + 3, shelter.width * TILE - 6, shelter.height * TILE - 6);
+  for (const [name, label] of [['shelter', 'O₂ 대피소 · 산소 충전'], ['wreck', '캡슐 잔해 지대'],
+    ['facility', '폐쇄 설비 구역'], ['pad', '탈출소']]) {
+    const r = REGIONS[name];
+    text(ctx, label, (r.x + r.width / 2) * TILE, r.y * TILE - 12, '#ead6ad', 12);
   }
-  rect(ctx, 676, 286, 88, 5, '#9db5a4'); rect(ctx, 676, 287, 4, 92, '#9db5a4'); rect(ctx, 760, 287, 4, 92, '#9db5a4');
-  text(ctx, 'O₂ 대피소', 721, 307, '#d1e3c0', 11);
-  text(ctx, '캡슐 잔해 지대', 555, 105, '#e0ba90', 12);
-  text(ctx, '폐쇄 설비 구역', 875, 423, '#ded0ae', 11);
+  // Trail junctions keep destinations discoverable without exposing the whole map.
+  text(ctx, '↑ 잔해 지대   /   O₂ 대피소 →', 29.5 * TILE, 19.5 * TILE, '#e8d6ad', 11);
+  text(ctx, '← 공동 온실', 20.5 * TILE, 19.5 * TILE, '#e8d6ad', 11);
+  text(ctx, '↑ 탈출소   /   설비 구역 ↓', 49.5 * TILE, 20.5 * TILE, '#e8d6ad', 11);
+}
+
+export function render(ctx, state, moving = false, reducedMotion = false, pixelRatio = 1) {
+  const { width, height } = ctx.canvas;
+  const view = cameraView(width, height, state.position, pixelRatio);
+  ctx.resetTransform();
+  rect(ctx, 0, 0, width, height, colors.sand);
+  ctx.save();
+  ctx.scale(view.scale, view.scale);
+  ctx.translate(-view.x, -view.y);
+  ctx.imageSmoothingEnabled = false;
+  const right = Math.min(WIDTH, Math.ceil((view.x + view.width) / TILE));
+  const bottom = Math.min(HEIGHT, Math.ceil((view.y + view.height) / TILE));
+  for (let y = Math.floor(view.y / TILE); y < bottom; y++) {
+    for (let x = Math.floor(view.x / TILE); x < right; x++) tile(ctx, x, y);
+  }
+  ctx.save(); ctx.translate(GREENHOUSE_OFFSET.x * TILE, GREENHOUSE_OFFSET.y * TILE);
+  greenhouse(ctx); ctx.restore();
+  exterior(ctx);
   if (!state.leakFixed) {
-    ctx.fillStyle = '#cf76592b'; ctx.fillRect(26 * TILE, 14 * TILE, 4 * TILE, 4 * TILE);
-    ctx.strokeStyle = '#e9ae67'; ctx.setLineDash([8, 6]); ctx.strokeRect(26 * TILE, 14 * TILE, 4 * TILE, 4 * TILE); ctx.setLineDash([]);
-    text(ctx, '⚠ 누출 · 초당 체력 −2', 893, 580, '#f4c398', 10);
+    ctx.fillStyle = '#cf76592b'; ctx.fillRect(LEAK.x * TILE, LEAK.y * TILE, LEAK.width * TILE, LEAK.height * TILE);
+    ctx.strokeStyle = '#e9ae67'; ctx.setLineDash([8, 6]);
+    ctx.strokeRect(LEAK.x * TILE, LEAK.y * TILE, LEAK.width * TILE, LEAK.height * TILE); ctx.setLineDash([]);
+    text(ctx, '⚠ 누출 · 초당 체력 −2', (LEAK.x + LEAK.width / 2) * TILE, (LEAK.y + LEAK.height) * TILE + 20, '#f4c398', 10);
   }
   for (const o of OBJECTS) object(ctx, state, o);
   for (const r of state.residents.filter(r => r.alive)) {
@@ -172,13 +202,19 @@ export function render(ctx, state, moving = false, reducedMotion = false) {
     rect(ctx, px - 20, py - 32, 40, 4, '#263439');
     rect(ctx, px - 20, py - 32, Math.max(0, 1 - state.job.remaining / 8) * 40, 4, '#e4c88d');
   }
+  ctx.restore();
+  // Weather and danger frames belong to the viewport, not a fixed world rectangle.
   if (weather(state).storm && !isSafe(state.position)) {
-    rect(ctx, 0, 0, 1024, 640, '#d4a26b26');
+    rect(ctx, 0, 0, width, height, '#d4a26b26');
     for (let i = 0; i < 65; i++) {
       const t = reducedMotion ? 0 : state.elapsed;
-      const x = (i * 131 + t * 150) % 1024, y = (i * 79 + t * 24) % 640;
-      rect(ctx, x, y, 12 + i % 10, 1, '#e4c89e60');
+      const x = ((i * 131 + t * 150) * pixelRatio) % width;
+      const y = ((i * 79 + t * 24) * pixelRatio) % height;
+      rect(ctx, x, y, (12 + i % 10) * pixelRatio, pixelRatio, '#e4c89e60');
     }
   }
-  if (inLeak(state.position) && !state.leakFixed) { ctx.strokeStyle = '#d97c5b'; ctx.lineWidth = 5; ctx.strokeRect(3, 3, 1018, 634); }
+  if (inLeak(state.position) && !state.leakFixed) {
+    ctx.strokeStyle = '#d97c5b'; ctx.lineWidth = 5 * pixelRatio;
+    ctx.strokeRect(3 * pixelRatio, 3 * pixelRatio, width - 6 * pixelRatio, height - 6 * pixelRatio);
+  }
 }

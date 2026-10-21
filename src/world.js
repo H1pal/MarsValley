@@ -1,36 +1,58 @@
-export const WIDTH = 32;
-export const HEIGHT = 20;
+export const WIDTH = 64;
+export const HEIGHT = 40;
 export const TILE = 32;
+
+// Region geometry is shared by collision, safety checks, and drawing.
+export const GREENHOUSE_OFFSET = { x: 4, y: 10 };
+export const SPAWN = { x: 11.5, y: 24.5 };
+export const REGIONS = {
+  greenhouse: { x: 5, y: 12, width: 12, height: 16 },
+  wreck: { x: 25, y: 4, width: 19, height: 13 },
+  shelter: { x: 34, y: 20, width: 5, height: 4 },
+  facility: { x: 48, y: 28, width: 12, height: 9 },
+  pad: { x: 54, y: 4, width: 8, height: 7 },
+};
+export const LEAK = { x: 51, y: 30, width: 5, height: 5 };
+export const RESCUE_POSITION = { x: 53.5, y: 32.5 };
+export const TRAILS = [
+  [{ x: 16.5, y: 20.5 }, { x: 36.5, y: 20.5 }],
+  [{ x: 29.5, y: 20.5 }, { x: 29.5, y: 10.5 }],
+  [{ x: 36.5, y: 21.5 }, { x: 50.5, y: 21.5 }, { x: 50.5, y: 8.5 }, { x: 58.5, y: 8.5 }],
+  [{ x: 49.5, y: 21.5 }, { x: 49.5, y: 29.5 }],
+];
+export function contains(region, x, y) {
+  return x >= region.x && x < region.x + region.width && y >= region.y && y < region.y + region.height;
+}
 
 export const PLOTS = [
   { x: 4.5, y: 6.5 }, { x: 6.5, y: 6.5 }, { x: 8.5, y: 6.5 },
   { x: 4.5, y: 8.5 }, { x: 6.5, y: 8.5 }, { x: 8.5, y: 8.5 },
-];
+].map(p => ({ x: p.x + GREENHOUSE_OFFSET.x, y: p.y + GREENHOUSE_OFFSET.y }));
 
 export const OBJECTS = [
   ...PLOTS.map((p, i) => ({ ...p, id: `plot-${i}`, type: 'plot', label: '공동 경작대' })),
-  { id: 'board', type: 'board', x: 3.5, y: 4.5, label: '공동체 게시판' },
-  { id: 'pump', type: 'pump', x: 10.5, y: 4.5, label: '급수 장치' },
-  { id: 'ship', type: 'ship', x: 28.5, y: 5.5, label: '탈출선' },
-  { id: 'valve', type: 'valve', x: 24.5, y: 13.5, label: '누출 차단 밸브' },
-  { id: 'signal', type: 'signal', x: 21.5, y: 3.5, label: '낡은 통신기' },
-  ...[{ x: 16.5, y: 4.5 }, { x: 19.5, y: 6.5 }, { x: 17.5, y: 15.5 },
-    { x: 23.5, y: 16.5 }, { x: 28.5, y: 17.5 }, { x: 29.5, y: 11.5 }]
+  { id: 'board', type: 'board', x: 7.5, y: 14.5, label: '공동체 게시판' },
+  { id: 'pump', type: 'pump', x: 14.5, y: 14.5, label: '급수 장치' },
+  { id: 'ship', type: 'ship', x: 58.5, y: 7.5, label: '탈출선' },
+  { id: 'valve', type: 'valve', x: 48.5, y: 29.5, label: '누출 차단 밸브' },
+  { id: 'signal', type: 'signal', x: 43.5, y: 5.5, label: '낡은 통신기' },
+  ...[{ x: 26.5, y: 7.5 }, { x: 35.5, y: 10.5 }, { x: 41.5, y: 14.5 },
+    { x: 26.5, y: 31.5 }, { x: 54.5, y: 34.5 }, { x: 58.5, y: 24.5 }]
     .map((p, i) => ({ ...p, id: `scrap-${i}`, type: 'scrap', label: '캡슐 잔해' })),
 ];
 
 export function terrain(x, y) {
   const tx = Math.floor(x), ty = Math.floor(y);
   if (tx <= 0 || ty <= 0 || tx >= WIDTH - 1 || ty >= HEIGHT - 1) return 'wall';
-  if (tx >= 1 && tx <= 12 && ty >= 2 && ty <= 17) {
-    if (tx === 1 || ty === 2 || (ty === 17 && tx !== 7) || (tx === 12 && ty !== 10)) return 'wall';
+  if (contains(REGIONS.greenhouse, tx, ty)) {
+    const localX = tx - GREENHOUSE_OFFSET.x, localY = ty - GREENHOUSE_OFFSET.y;
+    if (localX === 1 || localY === 2 || (localY === 17 && localX !== 7) || (localX === 12 && localY !== 10)) return 'wall';
     return 'greenhouse';
   }
-  if ((tx === 16 && ty >= 7 && ty <= 11 && ty !== 9)
-      || (ty === 14 && tx >= 19 && tx <= 21)) return 'crack';
-  if (tx >= 21 && tx <= 23 && ty >= 9 && ty <= 11) return 'shelter';
-  if (tx >= 24 && tx <= 30 && ty >= 13 && ty <= 18) return 'facility';
-  if (tx >= 26 && tx <= 30 && ty >= 3 && ty <= 7) return 'pad';
+  if ((tx === 24 && ty >= 17 && ty <= 25 && ty !== 20 && ty !== 21)
+      || (ty === 27 && tx >= 36 && tx <= 43 && tx !== 40)
+      || (tx === 46 && ty >= 6 && ty <= 17 && ty !== 10 && ty !== 11)) return 'crack';
+  for (const name of ['shelter', 'facility', 'pad']) if (contains(REGIONS[name], tx, ty)) return name;
   return 'sand';
 }
 
@@ -39,7 +61,7 @@ export function isSafe(position) {
 }
 
 export function inLeak(position) {
-  return position.x >= 26 && position.x < 30 && position.y >= 14 && position.y < 18;
+  return contains(LEAK, position.x, position.y);
 }
 
 export function canStand(x, y) {
@@ -53,8 +75,9 @@ export function canStand(x, y) {
 }
 
 export function residentPosition(state, resident) {
-  if (resident.id === 'seon' && state.rescue === 'active') return { x: 27.5, y: 15.5 };
+  if (resident.id === 'seon' && state.rescue === 'active') return { ...RESCUE_POSITION };
   const home = { seon: { x: 4.5, y: 12.5 }, hong: { x: 7.5, y: 12.5 }, dj: { x: 10.5, y: 12.5 } };
+  for (const p of Object.values(home)) { p.x += GREENHOUSE_OFFSET.x; p.y += GREENHOUSE_OFFSET.y; }
   if (!resident.alive || resident.id === 'dj') return home[resident.id];
   // A small deterministic work route: no separate AI or pathfinding system.
   const phase = state.elapsed % 30;

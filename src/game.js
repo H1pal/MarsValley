@@ -1,13 +1,13 @@
-import { canStand, inLeak, isSafe, nearest, OBJECTS, PLOTS, terrain } from './world.js';
+import { canStand, inLeak, isSafe, nearest, OBJECTS, PLOTS, terrain, SPAWN, REGIONS, contains } from './world.js';
 
-export const VERSION = 1;
+export const VERSION = 2;
 export const RULES = Object.freeze({ growth: 90, hunger: 0.12, oxygen: 0.45, rescueAt: 120, rescueWindow: 240 });
 const clamp = value => Math.max(0, Math.min(100, value));
 
 export function newGame() {
   return {
     version: VERSION, runId: globalThis.crypto.randomUUID(), status: 'active', elapsed: 0,
-    position: { x: 7.5, y: 14.5 }, health: 100, hunger: 75, oxygen: 100,
+    position: { ...SPAWN }, health: 100, hunger: 75, oxygen: 100,
     food: 6, parts: 0, provisions: 0, harvested: 0, workerClock: 0,
     crops: PLOTS.map((_, i) => ({ planted: i < 4, watered: i < 4, growth: i < 2 ? 90 : 25 })),
     residents: [
@@ -249,5 +249,5 @@ export function act(state, action, value) {
 
 export function locationName(state) {
   const tile = terrain(state.position.x, state.position.y);
-  return { greenhouse: '공동 온실', shelter: '산소 대피소', facility: '폐쇄 설비 구역', pad: '외곽 발사대' }[tile] ?? '캡슐 잔해 지대';
+  return { greenhouse: '공동 온실', shelter: '산소 대피소', facility: '폐쇄 설비 구역', pad: '외곽 발사대' }[tile] ?? (contains(REGIONS.wreck, state.position.x, state.position.y) ? '캡슐 잔해 지대' : '화성 황무지');
 }

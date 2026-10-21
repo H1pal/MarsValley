@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { act, interact, launchRequirements, move, newGame, tick, weather } from '../src/game.js';
-import { OBJECTS, nearest, canStand, residentPosition } from '../src/world.js';
+import { OBJECTS, nearest, canStand, residentPosition, REGIONS, RESCUE_POSITION } from '../src/world.js';
 
 function seconds(state, amount) { for (let i = 0; i < amount; i++) tick(state, 1); }
 function approach(state, id) {
@@ -44,7 +44,7 @@ test('outside oxygen drains, shelter restores it, and storm makes it more costly
   assert.equal(weather(state).storm, true);
   seconds(state, 10);
   assert.ok(Math.abs(state.oxygen - 86.5) < 0.001);
-  state.position = { x: 22, y: 10 };
+  state.position = { x: REGIONS.shelter.x + 1.5, y: REGIONS.shelter.y + 1.5 };
   seconds(state, 2);
   assert.equal(state.oxygen, 100);
 });
@@ -68,7 +68,7 @@ test('hunger can kill even in the greenhouse', () => {
 });
 
 test('movement has collisions and diagonal speed is normalized', () => {
-  assert.equal(canStand(1.5, 5), false);
+  assert.equal(canStand(REGIONS.greenhouse.x + 0.5, REGIONS.greenhouse.y + 3), false);
   const a = newGame(), b = newGame();
   a.position = { x: 18, y: 10 }; b.position = { ...a.position };
   move(a, 1, 0, 0.1); move(b, 1, 1, 0.1);
@@ -105,12 +105,12 @@ test('discussion protects agreed communal reserve and permits returning provisio
 test('rescue offers a no-parts alternative and prevents scheduled resident death', () => {
   const state = newGame(); seconds(state, 120);
   assert.equal(state.rescue, 'active');
-  state.position = { x: 27.5, y: 14.5 }; state.oxygen = 50;
+  state.position = { x: RESCUE_POSITION.x, y: RESCUE_POSITION.y - 1 }; state.oxygen = 50;
   assert.equal(nearest(state).id, 'seon');
   assert.equal(act(state, 'rescue', 'repair').ok, false);
   assert.equal(act(state, 'rescue', 'evacuate').ok, true);
   assert.equal(state.oxygen, 30);
-  state.position = { x: 7.5, y: 14.5 }; seconds(state, 250);
+  state.position = { ...newGame().position }; seconds(state, 250);
   assert.equal(state.residents[0].alive, true);
   assert.equal(state.rescue, 'saved');
 });
@@ -161,7 +161,7 @@ test('all three residents can be rescued, persuaded and supplied for departure',
   }
   approach(state, 'valve'); interact(state);
   assert.equal(state.leakFixed, true);
-  state.position = { x: 27.5, y: 14.5 };
+  state.position = { x: RESCUE_POSITION.x, y: RESCUE_POSITION.y - 1 };
   assert.equal(act(state, 'rescue', 'repair').ok, true);
   approach(state, 'pump'); assert.equal(act(state, 'pump').ok, true);
   approach(state, 'signal'); interact(state);
