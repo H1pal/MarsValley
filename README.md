@@ -21,6 +21,7 @@ ESLint, Node 내장 테스트, 정적 배포 파일 생성을 순서대로 실�
 
 ## 개발 문서
 
+- [v1.5 정착·생존 불평등 수정 명세](docs/v1.5-settlement-spec.md): 기획 검토안, 현재 실행 코드에는 미적용
 - [MVP 기능 명세](docs/mvp-spec.md): 합의 사항, 임시 규칙, 수용 기준
 - [개발 순서와 검증](docs/development.md): 구조, 수동 테스트, 다음 작업
 
