@@ -1,5 +1,5 @@
 import { WIDTH, HEIGHT, TILE, terrain, OBJECTS, nearest, residentPosition, isSafe, inLeak, GREENHOUSE_OFFSET, REGIONS, LEAK, TRAILS } from './world.js';
-import { weather, RULES } from './game.js';
+import { weather } from './game.js';
 
 const colors = { sand: '#89583e', greenhouse: '#4b5950', facility: '#525653', pad: '#575858', shelter: '#435b58', wall: '#5c4536', crack: '#49362e' };
 const personColors = { seon: '#b9c88f', hong: '#d6a773', dj: '#a3b9d5' };
@@ -58,13 +58,13 @@ function greenhouse(ctx) {
   text(ctx, 'AIRLOCK →', 353, 340, '#ede2b7', 9);
 }
 
-function plant(ctx, crop, px, py, pumpFixed) {
+function plant(ctx, crop, px, py, pumpFixed, growth) {
   rect(ctx, px - 14, py - 12, 28, 28, '#273a30');
   rect(ctx, px - 14, py - 14, 28, 24, '#8b7960');
   rect(ctx, px - 11, py - 11, 22, 18, crop.watered || pumpFixed ? '#473b2d' : '#6b4b32');
   for (const offset of [-6, 6]) {
     if (!crop.planted) { rect(ctx, px + offset - 3, py - 1, 5, 2, '#a27749'); continue; }
-    const ripe = crop.growth >= RULES.growth;
+    const ripe = crop.growth >= growth;
     const tall = crop.growth > 40;
     rect(ctx, px + offset, py - (tall ? 12 : 5), 2, tall ? 16 : 9, '#6e9a63');
     rect(ctx, px + offset - 5, py - (tall ? 10 : 3), 5, 4, '#a4c480');
@@ -72,7 +72,7 @@ function plant(ctx, crop, px, py, pumpFixed) {
     if (ripe) { rect(ctx, px + offset - 4, py + 1, 5, 5, '#dcc27f'); rect(ctx, px + offset + 2, py + 3, 4, 4, '#b7a269'); }
   }
   if (crop.planted && !crop.watered && !pumpFixed) text(ctx, '급수', px, py + 29, '#f2cc8f', 9);
-  else if (crop.planted && crop.growth >= RULES.growth) text(ctx, '수확', px, py + 29, '#c0dfa1', 9);
+  else if (crop.planted && crop.growth >= growth) text(ctx, '수확', px, py + 29, '#c0dfa1', 9);
 }
 
 function person(ctx, px, py, color, astronaut, time, moving) {
@@ -89,7 +89,13 @@ function person(ctx, px, py, color, astronaut, time, moving) {
 
 function object(ctx, state, o) {
   const px = o.x * TILE, py = o.y * TILE;
-  if (o.type === 'plot') { plant(ctx, state.crops[Number(o.id.split('-')[1])], px, py, state.pumpFixed); return; }
+  if (o.type === 'plot') {
+    plant(ctx, state.crops[Number(o.id.split('-')[1])], px, py, state.pumpFixed, state.soilSettled ? 90 : 360);
+    if (o.id === 'plot-5' && state.soil.phase !== 'idle') {
+      text(ctx, state.soilSettled ? '첫 흙 안착' : state.soil.phase === 'observing' ? `흙 관찰 ${Math.floor(state.soil.observed)}/90` : '공동 텃밭', px, py + 41, '#c0dfa1', 9);
+    }
+    return;
+  }
   if (o.type === 'scrap') {
     const empty = state.searched.includes(o.id);
     rect(ctx, px - 15, py - 4, 31, 17, '#493c33');
@@ -99,13 +105,13 @@ function object(ctx, state, o) {
     if (!empty) rect(ctx, px + 11, py - 18, 3, 3, '#e7c382');
   } else if (o.type === 'ship') {
     rect(ctx, px - 31, py + 24, 62, 16, '#333d3b');
-    rect(ctx, px - 18, py - 35, 36, 62, '#c4c4b0');
-    rect(ctx, px - 12, py - 47, 24, 12, '#e0d8bd'); rect(ctx, px - 6, py - 54, 12, 7, '#e0d8bd');
-    rect(ctx, px - 8, py - 26, 16, 16, '#3d6770'); rect(ctx, px - 5, py - 24, 10, 5, '#93b8b3');
-    rect(ctx, px - 18, py + 2, 36, 7, '#b36d4c'); rect(ctx, px - 27, py + 7, 9, 23, '#8d9b94'); rect(ctx, px + 18, py + 7, 9, 23, '#8d9b94');
-    rect(ctx, px - 11, py + 26, 8, 10, state.engine ? '#e0a971' : '#494d48');
-    rect(ctx, px + 3, py + 26, 8, 10, state.engine ? '#e0a971' : '#494d48');
-    text(ctx, '탈출선', px, py + 57, '#ede0bf', 11);
+    rect(ctx, px - 22, py - 43, 44, 69, state.baseFixed ? '#a8b5a4' : '#8c9185');
+    rect(ctx, px - 27, py - 48, 54, 7, '#697e77');
+    for (let y = -36; y < -10; y += 7) rect(ctx, px - 15, py + y, 30, 3, state.filterFixed ? '#93c8bc' : '#435653');
+    rect(ctx, px - 16, py + 3, 32, 16, '#403d34');
+    for (let x = -12; x < 13; x += 8) rect(ctx, px + x, py + 5, 4, 12, state.heatFixed ? '#e8b06f' : '#6c6150');
+    rect(ctx, px - 29, py - 2, 7, 28, '#657e75'); rect(ctx, px + 22, py - 2, 7, 28, '#657e75');
+    text(ctx, '정화·난방 타워', px, py + 57, '#ede0bf', 11);
   } else if (o.type === 'board') {
     rect(ctx, px - 13, py - 17, 26, 29, '#ac9168'); rect(ctx, px - 10, py - 14, 20, 21, '#d2c7a4');
     rect(ctx, px - 7, py - 11, 9, 6, '#6c8d7a'); rect(ctx, px - 7, py - 2, 14, 2, '#8e8061');
@@ -149,14 +155,14 @@ function exterior(ctx) {
   ctx.strokeStyle = '#9db5a4'; ctx.lineWidth = 4;
   ctx.strokeRect(shelter.x * TILE + 3, shelter.y * TILE + 3, shelter.width * TILE - 6, shelter.height * TILE - 6);
   for (const [name, label] of [['shelter', 'O₂ 대피소 · 산소 충전'], ['wreck', '캡슐 잔해 지대'],
-    ['facility', '폐쇄 설비 구역'], ['pad', '탈출소']]) {
+    ['facility', '폐쇄 설비 구역'], ['pad', '중앙 타워']]) {
     const r = REGIONS[name];
     text(ctx, label, (r.x + r.width / 2) * TILE, r.y * TILE - 12, '#ead6ad', 12);
   }
   // Trail junctions keep destinations discoverable without exposing the whole map.
   text(ctx, '↑ 잔해 지대   /   O₂ 대피소 →', 29.5 * TILE, 19.5 * TILE, '#e8d6ad', 11);
   text(ctx, '← 공동 온실', 20.5 * TILE, 19.5 * TILE, '#e8d6ad', 11);
-  text(ctx, '↑ 탈출소   /   설비 구역 ↓', 49.5 * TILE, 20.5 * TILE, '#e8d6ad', 11);
+  text(ctx, '↑ 중앙 타워   /   설비 구역 ↓', 49.5 * TILE, 20.5 * TILE, '#e8d6ad', 11);
 }
 
 export function render(ctx, state, moving = false, reducedMotion = false, pixelRatio = 1) {
@@ -185,9 +191,9 @@ export function render(ctx, state, moving = false, reducedMotion = false, pixelR
   for (const o of OBJECTS) object(ctx, state, o);
   for (const r of state.residents.filter(r => r.alive)) {
     const position = residentPosition(state, r);
-    person(ctx, position.x * TILE, position.y * TILE, personColors[r.id], false, state.elapsed, !reducedMotion && r.id !== 'dj');
+    person(ctx, position.x * TILE, position.y * TILE, personColors[r.id], false, state.elapsed, !reducedMotion && r.id === 'hong');
     text(ctx, r.name, position.x * TILE, position.y * TILE + 31, '#e1e3c6', 10);
-    if (r.id === 'seon' && state.rescue === 'active') text(ctx, 'SOS', position.x * TILE, position.y * TILE - 31, '#ffcd9b', 13);
+    if (r.id === 'seon') text(ctx, '요양 중', position.x * TILE, position.y * TILE - 31, '#ffcd9b', 9);
   }
   const px = state.position.x * TILE, py = state.position.y * TILE;
   person(ctx, px, py, '#ede2c7', true, state.elapsed, moving && !reducedMotion);
@@ -200,7 +206,7 @@ export function render(ctx, state, moving = false, reducedMotion = false, pixelR
   }
   if (state.job) {
     rect(ctx, px - 20, py - 32, 40, 4, '#263439');
-    rect(ctx, px - 20, py - 32, Math.max(0, 1 - state.job.remaining / 8) * 40, 4, '#e4c88d');
+    rect(ctx, px - 20, py - 32, Math.max(0, 1 - state.job.remaining / state.job.duration) * 40, 4, '#e4c88d');
   }
   ctx.restore();
   // Weather and danger frames belong to the viewport, not a fixed world rectangle.

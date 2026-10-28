@@ -11,7 +11,7 @@ test('map is usable during a forecast but unavailable throughout every storm', (
       assert.equal(canUseMap(state), allowed, `time ${state.elapsed}`);
     }
   }
-  for (const status of ['dead', 'escaped']) {
+  for (const status of ['dead', 'settled', 'failed']) {
     state.status = status; state.elapsed = 0;
     assert.equal(canUseMap(state), false);
   }

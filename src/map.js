@@ -19,7 +19,7 @@ export function createMapView(svg, detailed = false) {
   }
   node('path', { d: obstacles, fill: '#2c2924' });
   for (const trail of TRAILS) node('polyline', { points: trail.map(p => `${p.x},${p.y}`).join(' '), fill: 'none', stroke: '#c1a477', 'stroke-width': .3, 'stroke-dasharray': '.8 .6' });
-  const names = { greenhouse: '공동 온실', wreck: '캡슐 잔해', shelter: 'O₂ 대피소', facility: '폐쇄 설비', pad: '탈출소' };
+  const names = { greenhouse: '공동 온실', wreck: '캡슐 잔해', shelter: 'O₂ 대피소', facility: '폐쇄 설비', pad: '중앙 타워' };
   const colors = { greenhouse: '#92ac7e', wreck: '#d1a365', shelter: '#83c7ca', facility: '#c89078', pad: '#d6cbb0' };
   for (const [key, r] of Object.entries(REGIONS)) {
     node('rect', { ...r, rx: .5, fill: colors[key], 'fill-opacity': .3, stroke: colors[key], 'stroke-width': .4 });

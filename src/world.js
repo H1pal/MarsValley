@@ -33,12 +33,12 @@ export const OBJECTS = [
   ...PLOTS.map((p, i) => ({ ...p, id: `plot-${i}`, type: 'plot', label: '공동 경작대' })),
   { id: 'board', type: 'board', x: 7.5, y: 14.5, label: '공동체 게시판' },
   { id: 'pump', type: 'pump', x: 14.5, y: 14.5, label: '급수 장치' },
-  { id: 'ship', type: 'ship', x: 58.5, y: 7.5, label: '탈출선' },
+  { id: 'ship', type: 'ship', x: 58.5, y: 7.5, label: '중앙 흙 정화·난방 타워' },
   { id: 'valve', type: 'valve', x: 48.5, y: 29.5, label: '누출 차단 밸브' },
   { id: 'signal', type: 'signal', x: 43.5, y: 5.5, label: '낡은 통신기' },
   ...[{ x: 26.5, y: 7.5 }, { x: 35.5, y: 10.5 }, { x: 41.5, y: 14.5 },
     { x: 26.5, y: 31.5 }, { x: 54.5, y: 34.5 }, { x: 58.5, y: 24.5 }]
-    .map((p, i) => ({ ...p, id: `scrap-${i}`, type: 'scrap', label: '캡슐 잔해' })),
+    .map((p, i) => ({ ...p, id: `scrap-${i}`, type: 'scrap', label: `캡슐 잔해 · ${['의료 키트 1개', '정화 필터 2개', '난방 코일 1개', '수리 자재 2개', '비상 산소 120', '공동 식량 2식'][i]}` })),
 ];
 
 export function terrain(x, y) {
@@ -75,10 +75,9 @@ export function canStand(x, y) {
 }
 
 export function residentPosition(state, resident) {
-  if (resident.id === 'seon' && state.rescue === 'active') return { ...RESCUE_POSITION };
   const home = { seon: { x: 4.5, y: 12.5 }, hong: { x: 7.5, y: 12.5 }, dj: { x: 10.5, y: 12.5 } };
   for (const p of Object.values(home)) { p.x += GREENHOUSE_OFFSET.x; p.y += GREENHOUSE_OFFSET.y; }
-  if (!resident.alive || resident.id === 'dj') return home[resident.id];
+  if (!resident.alive || resident.id === 'seon' || resident.id === 'dj') return home[resident.id];
   // A small deterministic work route: no separate AI or pathfinding system.
   const phase = state.elapsed % 30;
   const offset = phase < 10 ? phase / 10 : phase < 20 ? 1 : (30 - phase) / 10;
@@ -89,6 +88,8 @@ export function nearest(state) {
   const targets = [...OBJECTS, ...state.residents.filter(r => r.alive).map(r => ({
     ...residentPosition(state, r), id: r.id, type: 'resident', label: r.name,
   }))];
-  return targets.map(o => ({ ...o, distance: Math.hypot(o.x - state.position.x, o.y - state.position.y) }))
-    .filter(o => o.distance <= 1.6).sort((a, b) => a.distance - b.distance)[0] ?? null;
+  const target = targets.map(o => ({ ...o, distance: Math.hypot(o.x - state.position.x, o.y - state.position.y) }))
+    .filter(o => o.distance <= 1.6).sort((a, b) => a.distance - b.distance)[0];
+  return target ?? (contains(REGIONS.shelter, state.position.x, state.position.y)
+    ? { ...state.position, id: 'shelter', type: 'shelter', label: 'O₂ 대피소 무전', distance: 0 } : null);
 }
