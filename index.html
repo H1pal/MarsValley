@@ -1,95 +1,279 @@
 <!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="공동 온실에서 첫 흙을 만들고, 식량과 산소의 몫을 논의하며 화성에서 함께 정착하는 생존 게임">
-  <meta name="theme-color" content="#89583e">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/src/style.css">
-  <title>Mars Valley · 마지막 온실</title>
-</head>
-<body>
-  <main id="game-screen" aria-label="Mars Valley 게임 화면">
-    <h1 class="sr-only">Mars Valley · 마지막 온실</h1>
-    <canvas id="world" width="1024" height="640" tabindex="0" aria-label="화성 지도. WASD 또는 방향키 이동, E 상호작용, Q 식사. 상세 정보는 화면 위의 미션, 내 정보, 게임 정보 버튼으로 확인합니다."></canvas>
-    <div id="world-state" class="world-state" hidden>일시정지</div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta
+      name="description"
+      content="공동 온실에서 첫 흙을 만들고, 식량과 산소의 몫을 논의하며 화성에서 함께 정착하는 생존 게임"
+    />
+    <meta name="theme-color" content="#89583e" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/style.css" />
+    <title>Mars Valley · 마지막 온실</title>
+  </head>
+  <body>
+    <main id="game-screen" aria-label="Mars Valley 게임 화면">
+      <h1 class="sr-only">Mars Valley · 마지막 온실</h1>
+      <canvas
+        id="world"
+        width="1024"
+        height="640"
+        tabindex="0"
+        aria-label="화성 지도. WASD 또는 방향키 이동, E 상호작용, Q 식사. 상세 정보는 화면 위의 미션, 내 정보, 게임 정보 버튼으로 확인합니다."
+      ></canvas>
+      <div id="world-state" class="world-state" hidden>일시정지</div>
 
-    <div class="hud">
-      <nav class="menu-dock" aria-label="게임 메뉴">
-        <span class="sector-label">MARS VALLEY <span>/ SECTOR 07</span></span>
-        <div class="menu-buttons">
-          <button id="mission-button" class="hud-button" aria-haspopup="dialog" aria-controls="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V3m0 1h13l-3 5 3 5H6"/></svg><span>미션</span></button>
-          <button id="player-button" class="hud-button" aria-haspopup="dialog" aria-controls="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13V8a7 7 0 0 1 14 0v5M5 9h14v7H5zM8 19h8v3H8zM8 12h8"/></svg><span>내 정보</span></button>
-          <button id="info-button" class="hud-button" aria-haspopup="dialog" aria-controls="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h12l4 4v14H4zM15 3v5h5M8 12h8M8 16h8"/></svg><span>게임 정보</span></button>
+      <div class="hud">
+        <nav class="menu-dock" aria-label="게임 메뉴">
+          <span class="sector-label">MARS VALLEY <span>/ SECTOR 07</span></span>
+          <div class="menu-buttons">
+            <button
+              id="mission-button"
+              class="hud-button"
+              aria-haspopup="dialog"
+              aria-controls="dialog"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 21V3m0 1h13l-3 5 3 5H6" /></svg
+              ><span>미션</span>
+            </button>
+            <button
+              id="player-button"
+              class="hud-button"
+              aria-haspopup="dialog"
+              aria-controls="dialog"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M5 13V8a7 7 0 0 1 14 0v5M5 9h14v7H5zM8 19h8v3H8zM8 12h8"
+                /></svg
+              ><span>내 정보</span>
+            </button>
+            <button
+              id="info-button"
+              class="hud-button"
+              aria-haspopup="dialog"
+              aria-controls="dialog"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 3h12l4 4v14H4zM15 3v5h5M8 12h8M8 16h8" /></svg
+              ><span>게임 정보</span>
+            </button>
+          </div>
+        </nav>
+
+        <div class="map-dock">
+          <button
+            id="map-button"
+            class="map-button"
+            aria-label="전체 지도 열기"
+            aria-haspopup="dialog"
+            aria-controls="dialog"
+          >
+            <svg id="mini-map" aria-hidden="true"></svg>
+            <span id="map-unavailable" hidden>지도<br />연결 불가</span>
+            <span class="map-caption" aria-hidden="true">MAP</span>
+          </button>
+          <div class="time">
+            <span>생존 시간</span><strong id="clock">00:00</strong>
+          </div>
         </div>
-      </nav>
-
-      <div class="map-dock">
-        <button id="map-button" class="map-button" aria-label="전체 지도 열기" aria-haspopup="dialog" aria-controls="dialog">
-          <svg id="mini-map" aria-hidden="true"></svg>
-          <span id="map-unavailable" hidden>지도<br>연결 불가</span>
-          <span class="map-caption" aria-hidden="true">MAP</span>
+        <button
+          id="pause"
+          class="settings-button"
+          aria-label="설정 및 일시정지"
+          aria-haspopup="dialog"
+          aria-controls="dialog"
+          title="설정 · Esc"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="m10 2-.7 3-2 .9-2.8-1-2 3.5L4.8 10v2.5l-2.3 1.7 2 3.5 2.8-1 2 .9.7 3h4l.7-3 2-.9 2.8 1 2-3.5-2.3-1.7V10l2.3-1.6-2-3.5-2.8 1-2-.9L14 2z"
+            />
+            <circle cx="12" cy="11.5" r="3" /></svg
+          ><span class="sr-only">설정</span>
         </button>
-        <div class="time"><span>생존 시간</span><strong id="clock">00:00</strong></div>
+
+        <div id="save-error" class="error-banner" role="alert" hidden></div>
+        <div id="danger-alert" class="danger-alert" role="status" hidden></div>
+
+        <section class="action-dock" aria-label="행동과 공동 자원">
+          <p id="interaction" class="interaction-hint">
+            WASD로 이동 · 가까운 대상에 E
+          </p>
+          <div class="hotbar hud-plate">
+            <button
+              id="interact"
+              class="tool-slot"
+              title="가까운 대상과 상호작용"
+            >
+              <kbd>E</kbd
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="m4 20 9-9M14 3a5 5 0 0 0-3 8l2 2a5 5 0 0 0 8-3l-4 1-4-4zM3 18l3 3"
+                /></svg
+              ><span>상호작용</span>
+            </button>
+            <button id="eat" class="tool-slot" title="내 배급으로 식사">
+              <kbd>Q</kbd
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 7c-6 5-2 14 6 13 6 0 10-7 7-12-3-5-9-5-13-1Z" />
+                <path d="m8 9 1 1m5-3 1 1m0 7 1 1m-9-1 1 1" /></svg
+              ><span>식사</span>
+            </button>
+            <div class="resource-slot">
+              <span class="resource-symbol" aria-hidden="true">♧</span
+              ><strong id="food">6</strong><span>공동 식량</span>
+            </div>
+            <div class="resource-slot">
+              <span class="resource-symbol" aria-hidden="true">⚙</span
+              ><strong id="parts">0</strong><span>생존 물자</span>
+            </div>
+            <div class="resource-slot">
+              <span class="resource-symbol" aria-hidden="true">▣</span
+              ><strong id="provisions">0</strong><span>겨울 비축</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="vitals hud-plate" aria-label="생존 상태">
+          <div class="vital health">
+            <label for="health"
+              >체력 <strong id="health-value">100</strong></label
+            ><meter id="health" min="0" max="100" value="100">100</meter>
+          </div>
+          <div class="vital hunger">
+            <label for="hunger"
+              >허기 <strong id="hunger-value">75</strong></label
+            ><meter id="hunger" min="0" max="100" value="75">75</meter>
+          </div>
+          <div class="vital oxygen">
+            <label for="oxygen"
+              >산소 <strong id="oxygen-value">100</strong></label
+            ><meter id="oxygen" min="0" max="100" value="100">100</meter>
+          </div>
+        </section>
+        <p id="latest-log" class="field-toast" aria-live="polite">
+          새로운 생존 기록을 시작하세요.
+        </p>
+        <span id="save-status" class="save-status">로컬 저장</span>
       </div>
-      <button id="pause" class="settings-button" aria-label="설정 및 일시정지" aria-haspopup="dialog" aria-controls="dialog" title="설정 · Esc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 2-.7 3-2 .9-2.8-1-2 3.5L4.8 10v2.5l-2.3 1.7 2 3.5 2.8-1 2 .9.7 3h4l.7-3 2-.9 2.8 1 2-3.5-2.3-1.7V10l2.3-1.6-2-3.5-2.8 1-2-.9L14 2z"/><circle cx="12" cy="11.5" r="3"/></svg><span class="sr-only">설정</span></button>
 
-      <div id="save-error" class="error-banner" role="alert" hidden></div>
-      <div id="danger-alert" class="danger-alert" role="status" hidden></div>
+      <div id="panel-home" hidden>
+        <section id="map-panel">
+          <div class="map-summary">
+            <div>
+              <span>현재 위치 · 란</span><strong id="place">공동 온실</strong>
+            </div>
+            <div>
+              <span>날씨 / 재해</span
+              ><strong
+                ><span id="weather-icon" aria-hidden="true">☀</span>
+                <span id="weather-title">맑음</span></strong
+              ><small id="weather-detail"></small>
+            </div>
+          </div>
+          <svg
+            id="overview-map"
+            role="img"
+            aria-label="화성 전체 지도: 서쪽 공동 온실, 북쪽 잔해 지대, 중앙 산소 대피소, 남동쪽 폐쇄 설비, 북동쪽 정화·난방 타워와 란의 위치"
+          ></svg>
+          <p class="map-legend">
+            <span>● 란</span><span>■ 구조물·잔해</span><span>┄ 이동 경로</span
+            ><span>북쪽 ↑</span>
+          </p>
+          <p class="dialog-note">
+            모래폭풍 중에는 지도를 사용할 수 없습니다. 열어 둔 동안 생존 시간은
+            멈춥니다.
+          </p>
+        </section>
+        <section id="mission-panel">
+          <p class="lead">돌아갈 지구는 없다. 이곳에서 함께 첫 겨울을.</p>
+          <ol id="objectives" class="objectives"></ol>
+          <div class="departure">
+            <span>함께 살아가는 사람들</span
+            ><strong id="crew">란과 주민 3명</strong
+            ><small id="needed">겨울 비축 8식 필요</small>
+          </div>
+          <p class="dialog-note">
+            설비와 첫 흙을 마련하고 최근 두 배급 주기와 현재의 몫을 확인합니다.
+            게시판에서 첫 겨울 점검을 마치세요.
+          </p>
+        </section>
+        <section id="player-panel">
+          <div class="player-heading">
+            <span class="player-portrait" aria-hidden="true">◉</span>
+            <div>
+              <h3>란</h3>
+              <p>귀환자 · 생존자</p>
+            </div>
+          </div>
+          <dl class="details-grid">
+            <div>
+              <dt>체력</dt>
+              <dd id="detail-health"></dd>
+            </div>
+            <div>
+              <dt>허기</dt>
+              <dd id="detail-hunger"></dd>
+            </div>
+            <div>
+              <dt>산소</dt>
+              <dd id="detail-oxygen"></dd>
+            </div>
+            <div>
+              <dt>공동 식량 / 내 배급</dt>
+              <dd id="detail-food"></dd>
+            </div>
+            <div>
+              <dt>생존 물자</dt>
+              <dd id="detail-parts"></dd>
+            </div>
+            <div>
+              <dt>겨울 비축</dt>
+              <dd id="detail-provisions"></dd>
+            </div>
+            <div>
+              <dt>누적 수확</dt>
+              <dd id="detail-harvested"></dd>
+            </div>
+            <div>
+              <dt>수색한 캡슐</dt>
+              <dd id="detail-searched"></dd>
+            </div>
+          </dl>
+          <p class="dialog-note">
+            식량은 공동 온실의 주민들과 나눕니다. 주인공이 사망하면 이번 회차는
+            종료됩니다.
+          </p>
+        </section>
+        <section id="info-panel">
+          <h3>함께 살아가는 사람들</h3>
+          <div id="residents"></div>
+          <h3 class="section-divider">104.2 MHz · 현재 무전</h3>
+          <p id="radio-message">온실은 안전합니다.</p>
+          <h3 class="section-divider">최근 생존 기록</h3>
+          <ol id="event-history" class="event-history"></ol>
+          <button id="help" class="quiet">조작 및 생존 안내</button>
+        </section>
+      </div>
 
-      <section class="action-dock" aria-label="행동과 공동 자원">
-        <p id="interaction" class="interaction-hint">WASD로 이동 · 가까운 대상에 E</p>
-        <div class="hotbar hud-plate">
-          <button id="interact" class="tool-slot" title="가까운 대상과 상호작용"><kbd>E</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 9-9M14 3a5 5 0 0 0-3 8l2 2a5 5 0 0 0 8-3l-4 1-4-4zM3 18l3 3"/></svg><span>상호작용</span></button>
-          <button id="eat" class="tool-slot" title="내 배급으로 식사"><kbd>Q</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7c-6 5-2 14 6 13 6 0 10-7 7-12-3-5-9-5-13-1Z"/><path d="m8 9 1 1m5-3 1 1m0 7 1 1m-9-1 1 1"/></svg><span>식사</span></button>
-          <div class="resource-slot"><span class="resource-symbol" aria-hidden="true">♧</span><strong id="food">6</strong><span>공동 식량</span></div>
-          <div class="resource-slot"><span class="resource-symbol" aria-hidden="true">⚙</span><strong id="parts">0</strong><span>생존 물자</span></div>
-          <div class="resource-slot"><span class="resource-symbol" aria-hidden="true">▣</span><strong id="provisions">0</strong><span>겨울 비축</span></div>
+      <dialog id="dialog" aria-labelledby="dialog-title">
+        <div class="dialog-top">
+          <span id="dialog-tag" class="eyebrow">MARS VALLEY</span
+          ><span class="tiny-planet" aria-hidden="true">◉</span>
         </div>
-      </section>
-
-      <section class="vitals hud-plate" aria-label="생존 상태">
-        <div class="vital health"><label for="health">체력 <strong id="health-value">100</strong></label><meter id="health" min="0" max="100" value="100">100</meter></div>
-        <div class="vital hunger"><label for="hunger">허기 <strong id="hunger-value">75</strong></label><meter id="hunger" min="0" max="100" value="75">75</meter></div>
-        <div class="vital oxygen"><label for="oxygen">산소 <strong id="oxygen-value">100</strong></label><meter id="oxygen" min="0" max="100" value="100">100</meter></div>
-      </section>
-      <p id="latest-log" class="field-toast" aria-live="polite">새로운 생존 기록을 시작하세요.</p>
-      <span id="save-status" class="save-status">로컬 저장</span>
-    </div>
-
-    <div id="panel-home" hidden>
-      <section id="map-panel">
-        <div class="map-summary">
-          <div><span>현재 위치 · 란</span><strong id="place">공동 온실</strong></div>
-          <div><span>날씨 / 재해</span><strong><span id="weather-icon" aria-hidden="true">☀</span> <span id="weather-title">맑음</span></strong><small id="weather-detail"></small></div>
-        </div>
-        <svg id="overview-map" role="img" aria-label="화성 전체 지도: 서쪽 공동 온실, 북쪽 잔해 지대, 중앙 산소 대피소, 남동쪽 폐쇄 설비, 북동쪽 정화·난방 타워와 란의 위치"></svg>
-        <p class="map-legend"><span>● 란</span><span>■ 구조물·잔해</span><span>┄ 이동 경로</span><span>북쪽 ↑</span></p>
-        <p class="dialog-note">모래폭풍 중에는 지도를 사용할 수 없습니다. 열어 둔 동안 생존 시간은 멈춥니다.</p>
-      </section>
-      <section id="mission-panel">
-        <p class="lead">돌아갈 지구는 없다. 이곳에서 함께 첫 겨울을.</p>
-        <ol id="objectives" class="objectives"></ol>
-        <div class="departure"><span>함께 살아가는 사람들</span><strong id="crew">란과 주민 3명</strong><small id="needed">겨울 비축 8식 필요</small></div>
-        <p class="dialog-note">설비와 첫 흙을 마련하고 최근 두 배급 주기와 현재의 몫을 확인합니다. 게시판에서 첫 겨울 점검을 마치세요.</p>
-      </section>
-      <section id="player-panel">
-        <div class="player-heading"><span class="player-portrait" aria-hidden="true">◉</span><div><h3>란</h3><p>귀환자 · 생존자</p></div></div>
-        <dl class="details-grid"><div><dt>체력</dt><dd id="detail-health"></dd></div><div><dt>허기</dt><dd id="detail-hunger"></dd></div><div><dt>산소</dt><dd id="detail-oxygen"></dd></div><div><dt>공동 식량 / 내 배급</dt><dd id="detail-food"></dd></div><div><dt>생존 물자</dt><dd id="detail-parts"></dd></div><div><dt>겨울 비축</dt><dd id="detail-provisions"></dd></div><div><dt>누적 수확</dt><dd id="detail-harvested"></dd></div><div><dt>수색한 캡슐</dt><dd id="detail-searched"></dd></div></dl>
-        <p class="dialog-note">식량은 공동 온실의 주민들과 나눕니다. 주인공이 사망하면 이번 회차는 종료됩니다.</p>
-      </section>
-      <section id="info-panel">
-        <h3>함께 살아가는 사람들</h3><div id="residents"></div>
-        <h3 class="section-divider">104.2 MHz · 현재 무전</h3><p id="radio-message">온실은 안전합니다.</p>
-        <h3 class="section-divider">최근 생존 기록</h3><ol id="event-history" class="event-history"></ol>
-        <button id="help" class="quiet">조작 및 생존 안내</button>
-      </section>
-    </div>
-
-    <dialog id="dialog" aria-labelledby="dialog-title"><div class="dialog-top"><span id="dialog-tag" class="eyebrow">MARS VALLEY</span><span class="tiny-planet" aria-hidden="true">◉</span></div><h2 id="dialog-title"></h2><div id="dialog-body"></div><p id="dialog-feedback" role="status"></p><div id="dialog-actions"></div></dialog>
-    <noscript>이 게임을 실행하려면 JavaScript를 활성화해 주세요.</noscript>
-  </main>
-  <script type="module" src="/src/main.js"></script>
-</body>
+        <h2 id="dialog-title"></h2>
+        <div id="dialog-body"></div>
+        <p id="dialog-feedback" role="status"></p>
+        <div id="dialog-actions"></div>
+      </dialog>
+      <noscript>이 게임을 실행하려면 JavaScript를 활성화해 주세요.</noscript>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
 </html>
