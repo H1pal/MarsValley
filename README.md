@@ -17,7 +17,11 @@ npm run dev
 npm run check
 ```
 
-ESLint, Node 테스트, 정적 배포 파일 생성을 순서대로 실행합니다. `dist/`는 정적 호스팅용 결과물이며 외부 게시·배포는 별도입니다.
+ESLint, Node 테스트, 정적 배포 파일 생성을 순서대로 실행합니다.
+
+## Vercel 배포
+
+Vercel에서 이 GitHub 저장소를 가져오고 프로젝트 루트는 저장소 최상위로, Production Branch는 `main`으로 설정합니다. 저장소의 `vercel.json`에 따라 `npm run build`로 생성한 `dist/`를 배포합니다. 별도 환경 변수는 필요하지 않습니다.
 
 ## 플레이
 
